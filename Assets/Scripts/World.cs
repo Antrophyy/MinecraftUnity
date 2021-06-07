@@ -7,7 +7,7 @@ using UnityEngine;
 public class World : MonoBehaviour
 {
     public Transform Player;
-    public static readonly int WorldSizeInChunks = 50;
+    public static readonly int WorldSizeInChunks = 100;
     public static int WorldSizeInVoxels => WorldSizeInChunks * VoxelData.ChunkWidth;
     public static readonly int ViewDistanceInChunks = 5;
     public Material Material;
@@ -19,9 +19,10 @@ public class World : MonoBehaviour
     BiomeAttributes biome;
 
     readonly ChunkBuilder[,] chunksArray = new ChunkBuilder[WorldSizeInChunks, WorldSizeInChunks];
-    readonly List<Vector2> activeChunks = new List<Vector2>();
+    readonly List<ChunkCoord> activeChunks = new List<ChunkCoord>();
     Vector3 spawnLocation;
-    Vector2 playerLastChunkCoordinates;
+    ChunkCoord playerLastChunkCoordinates;
+    ChunkCoord playerChunkCoord;
     readonly int maximumPerlinNoise = 78;
 
     void Start()
@@ -34,9 +35,15 @@ public class World : MonoBehaviour
 
     void Update()
     {
-        if (!playerLastChunkCoordinates.Equals(GetChunkPositionFromVector3(Player.position)))
+        playerChunkCoord = GetChunkPositionFromVector3(Player.position);
+
+        if (!playerLastChunkCoordinates.Equals(playerChunkCoord))
+        {
             CheckViewDistance();
+            playerLastChunkCoordinates = GetChunkPositionFromVector3(Player.position);
+        }
     }
+
     public byte GetVoxel(Vector3 position)
     {
         int yPosition = Mathf.FloorToInt(position.y);
@@ -50,9 +57,10 @@ public class World : MonoBehaviour
             return (byte)BlockType.BedrockBlock;
 
         int terrainHeight = Mathf.FloorToInt(biome.TerrainHeight * Noise.Get2DPerlin(new Vector2(position.x, position.z), 0, biome.TerrainScale)) + biome.SolidGroundHeight;
+
         if (yPosition > maximumPerlinNoise - 5 && yPosition <= terrainHeight)
             return (byte)BlockType.SnowBlock;
-        if (yPosition > maximumPerlinNoise - 10 && yPosition <= terrainHeight)
+        if (yPosition > maximumPerlinNoise - 10 && yPosition == terrainHeight)
             return (byte)BlockType.SnowDirtBlock;
         if (yPosition == terrainHeight)
             return (byte)BlockType.GrassBlock;
@@ -67,8 +75,8 @@ public class World : MonoBehaviour
     public ChunkBuilder GetChunkFromVector3(Vector3 position)
     {
         int x = Mathf.FloorToInt(position.x / VoxelData.ChunkWidth);
-        int y = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
-        return chunksArray[x, y];
+        int z = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
+        return chunksArray[x, z];
     }
 
     public bool IsVoxelInWorld(Vector3 position)
@@ -87,73 +95,80 @@ public class World : MonoBehaviour
     {
         for (int x = (WorldSizeInChunks / 2) - ViewDistanceInChunks; x < (WorldSizeInChunks / 2) + ViewDistanceInChunks; x++)
         {
-            for (int y = (WorldSizeInChunks / 2) - ViewDistanceInChunks; y < (WorldSizeInChunks / 2) + ViewDistanceInChunks; y++)
+            for (int z = (WorldSizeInChunks / 2) - ViewDistanceInChunks; z < (WorldSizeInChunks / 2) + ViewDistanceInChunks; z++)
             {
-                CreateNewChunk(x, y);
+                chunksArray[x, z] = new ChunkBuilder(new ChunkCoord(x, z), this);
+                activeChunks.Add(new ChunkCoord(x, z));
             }
         }
     }
 
-    void CreateNewChunk(int x, int y)
+    public bool CheckForVoxel(Vector3 pos)
     {
-        chunksArray[x, y] = new ChunkBuilder(new Vector2(x, y), this);
-        activeChunks.Add(new Vector2(x, y));
+        ChunkCoord thisChunk = new ChunkCoord(pos);
+
+        if (!IsChunkInWorld(thisChunk) || pos.y < 0 || pos.y > VoxelData.ChunkHeight)
+            return false;
+
+        if (chunksArray[thisChunk.X, thisChunk.Z] != null && chunksArray[thisChunk.X, thisChunk.Z].IsVoxelMapPopulated)
+            return BlockTypes[chunksArray[thisChunk.X, thisChunk.Z].GetVoxelFromGlobalVector3(pos)].IsSolid;
+
+        return BlockTypes[GetVoxel(pos)].IsSolid;
     }
+
     void SpawnPlayer()
     {
-        spawnLocation = new Vector3((WorldSizeInChunks * VoxelData.ChunkWidth) / 2f, VoxelData.ChunkHeight - 50, (WorldSizeInChunks * VoxelData.ChunkWidth) / 2f);
+        spawnLocation = new Vector3(WorldSizeInVoxels / 2f, VoxelData.ChunkHeight - 50, (WorldSizeInVoxels) / 2f);
 
         Player.position = spawnLocation;
     }
 
-    bool IsChunkInWorld(Vector2 chunkCoordinate)
+    bool IsChunkInWorld(ChunkCoord chunkCoordinate)
     {
-        return chunkCoordinate.x > 0 && chunkCoordinate.x < WorldSizeInChunks - 1
-            && chunkCoordinate.y > 0 && chunkCoordinate.y < WorldSizeInChunks - 1;
+        return chunkCoordinate.X >= 0 && chunkCoordinate.X < WorldSizeInChunks
+            && chunkCoordinate.Z >= 0 && chunkCoordinate.Z < WorldSizeInChunks;
     }
 
-    Vector2 GetChunkPositionFromVector3(Vector3 position)
+    ChunkCoord GetChunkPositionFromVector3(Vector3 position)
     {
         int x = Mathf.FloorToInt(position.x / VoxelData.ChunkWidth);
-        int y = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
-        return new Vector2(x, y);
+        int z = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
+        return new ChunkCoord(x, z);
     }
 
     void CheckViewDistance()
     {
-        Vector2 chunkCoordinates = GetChunkPositionFromVector3(Player.position);
+        ChunkCoord chunkCoordinates = GetChunkPositionFromVector3(Player.position);
+        playerLastChunkCoordinates = playerChunkCoord;
 
-        int chunkCoordinateX = (int)chunkCoordinates.x;
-        int chunkCoordinateY = (int)chunkCoordinates.y;
+        List<ChunkCoord> previouslyActiveChunks = new List<ChunkCoord>(activeChunks);
 
-        List<Vector2> previouslyActiveChunks = new List<Vector2>(activeChunks);
+        activeChunks.Clear();
 
-        for (int x = chunkCoordinateX - ViewDistanceInChunks; x < chunkCoordinates.x + ViewDistanceInChunks; x++)
+        for (int x = chunkCoordinates.X - ViewDistanceInChunks; x < chunkCoordinates.X + ViewDistanceInChunks; x++)
         {
-            for (int y = chunkCoordinateY - ViewDistanceInChunks; y < chunkCoordinates.y + ViewDistanceInChunks; y++)
+            for (int z = chunkCoordinates.Z - ViewDistanceInChunks; z < chunkCoordinates.Z + ViewDistanceInChunks; z++)
             {
-                if (IsChunkInWorld(new Vector2(x, y)))
+                ChunkCoord chunkCoord = new ChunkCoord(x, z);
+
+                if (IsChunkInWorld(chunkCoord))
                 {
-                    if (chunksArray[x, y] == null)
-                        CreateNewChunk(x, y);
-                    else if (!chunksArray[x, y].IsActive)
-                    {
-                        chunksArray[x, y].IsActive = true;
-                        activeChunks.Add(new Vector2(x, y));
-                    }
+                    if (chunksArray[x, z] == null)
+                        chunksArray[x, z] = new ChunkBuilder(chunkCoord, this);
+
+                    chunksArray[x, z].IsActive = true;
+                    activeChunks.Add(chunkCoord);
                 }
 
                 for (int i = 0; i < previouslyActiveChunks.Count; i++)
                 {
-                    if (previouslyActiveChunks[i].Equals(new Vector2(x, y)))
-                    {
+                    if (previouslyActiveChunks[i].Equals(chunkCoord))
                         previouslyActiveChunks.RemoveAt(i);
-                    }
                 }
             }
         }
 
-        foreach (Vector2 item in previouslyActiveChunks)
-            chunksArray[(int)item.x, (int)item.y].IsActive = false;
+        foreach (ChunkCoord coord in previouslyActiveChunks)
+            chunksArray[coord.X, coord.Z].IsActive = false;
     }
 }

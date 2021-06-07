@@ -23,7 +23,6 @@ public class PlayerMovement : MonoBehaviour
 
     float speed;
 
-
     void Awake() => controller = GetComponent<CharacterController>();
 
     void Start() => speed = movementSpeed;
@@ -54,7 +53,5 @@ public class PlayerMovement : MonoBehaviour
         velocity.y += gravity * Time.deltaTime;
 
         controller.Move(velocity * Time.deltaTime);
-
-
     }
 }

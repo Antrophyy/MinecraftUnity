@@ -4,26 +4,31 @@ public class HandleCrosshair : MonoBehaviour
 {
     [SerializeField]
     World world;
-
-    float checkIncrement = 0.1f;
-    float reach = 8f;
     [SerializeField]
     Transform highlightBlock;
     [SerializeField]
     Transform placeBlock;
-    [SerializeField]
-    Transform camera;
+    readonly float checkIncrement = 0.1f;
+    readonly float reach = 8f;
+    AudioSource audioData;
+    void Start()
+    {
+        audioData = GetComponent<AudioSource>();
+    }
+
     void Update()
     {
         PlaceCursorBlock();
 
-        if (Input.GetMouseButtonDown(0))
+        if (highlightBlock.gameObject.activeSelf)
         {
-            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Input.GetMouseButtonDown(0))
+                world.GetChunkFromVector3(highlightBlock.position).EditVoxel(highlightBlock.position, 0);
 
-            if (Physics.Raycast(ray, out RaycastHit hit))
+            if (Input.GetMouseButtonDown(1))
             {
-                world.GetChunkFromVector3(hit.point).EditVoxel(hit.point, 0);
+                world.GetChunkFromVector3(placeBlock.position).EditVoxel(placeBlock.position, 4);
+                audioData.Play();
             }
         }
     }
@@ -35,9 +40,9 @@ public class HandleCrosshair : MonoBehaviour
 
         while (step < reach)
         {
-            Vector3 pos = camera.position + (camera.forward * step);
+            Vector3 pos = Camera.main.transform.position + (Camera.main.transform.forward * step);
 
-            if (world.IsVoxelInWorld(pos))
+            if (world.CheckForVoxel(pos))
             {
                 highlightBlock.position = new Vector3(Mathf.FloorToInt(pos.x), Mathf.FloorToInt(pos.y), Mathf.FloorToInt(pos.z));
                 placeBlock.position = lastPos;
@@ -52,7 +57,9 @@ public class HandleCrosshair : MonoBehaviour
 
             step += checkIncrement;
         }
+
         highlightBlock.gameObject.SetActive(false);
         placeBlock.gameObject.SetActive(false);
+
     }
 }
