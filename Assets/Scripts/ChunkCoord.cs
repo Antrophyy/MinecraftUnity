@@ -1,5 +1,10 @@
 using UnityEngine;
 
+/// <summary>
+/// Artifical coordinate system that is independent of the object's world transform.position.
+/// These coordinates are used to create chunks into an array. The coordinates correspond
+/// to the indexes in the array.
+/// </summary>
 public class ChunkCoord
 {
     public int X { get; private set; }

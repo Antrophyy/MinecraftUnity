@@ -215,14 +215,14 @@ public class Chunk
     /// </summary>
     /// <param name="pos">World transform position that should point to voxel.</param>
     /// <param name="newVoxel">A new voxel that you want to place instead.</param>
-    public void ModifyVoxel(Vector3 pos, Voxel newVoxel)
+    public void ModifyVoxel(Vector3 pos, BlockType newVoxel)
     {
         Vector3Int newPos = Vector3ToVector3IntFloored(pos);
 
         newPos.x -= Mathf.FloorToInt(chunkObject.transform.position.x);
         newPos.z -= Mathf.FloorToInt(chunkObject.transform.position.z);
 
-        VoxelMap[newPos.x, newPos.y, newPos.z] = newVoxel;
+        VoxelMap[newPos.x, newPos.y, newPos.z].ModifyVoxel(newVoxel);
 
         UpdateSurroundingChunks(new Vector3Int(newPos.x, newPos.y, newPos.z));
         UpdateChunk();

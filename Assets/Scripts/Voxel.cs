@@ -36,9 +36,10 @@ public class Voxel
         AssignPropertiesBasedOnType();
     }
 
-    public Voxel(BlockType blockType)
+    public void ModifyVoxel(BlockType blockType)
     {
         BlockType = blockType;
+        AssignPropertiesBasedOnType();
     }
 
     public bool IsVoxelInWorld(Vector3 position)
