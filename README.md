@@ -10,5 +10,6 @@ That way, only one gameobject is created for a lot of voxels.
 
 # Optimization improvements that could be implemented:
 - Threading, make it so that the loading chunks and generating world is pararelized. That way the game would not "lag" whenever there is a new chunk loading.
+- Regarding loading a new chunk, make it so that they load over time and not in an instant, there could also be a queue container implemented for this optimization.
 - Moving away from mesh collider and instead use custom player movement, where we check each side of player movement whether there is a voxel existing or not.
 - Using a byte array for the voxel map instead of array of custom class type.
