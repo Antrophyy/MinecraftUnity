@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Singleton class for a rendered world
+/// The class that is used to populate all of the game world with chunks.
 /// </summary>
 public class World : MonoBehaviour
 {
@@ -11,7 +11,7 @@ public class World : MonoBehaviour
     public static int WorldSizeInVoxels => WorldSizeInChunks * VoxelData.ChunkWidth;
     public static readonly int ViewDistanceInChunks = 5;
     public Material Material;
-    public VoxelDetails[] BlockTypes;
+    public Voxel[] VoxelTypes;
 
     [SerializeField]
     int GameSeed;
@@ -44,11 +44,28 @@ public class World : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Gets the reference to the chunk from Vector3
+    /// </summary>
+    /// <param name="position"></param>
+    /// <returns></returns>
     public Chunk GetChunkFromVector3(Vector3 position)
     {
-        int x = Mathf.FloorToInt(position.x / VoxelData.ChunkWidth);
-        int z = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
-        return chunksArray[x, z];
+        var coord = GetChunkPositionFromVector3(position);
+        return chunksArray[coord.X, coord.Z];
+    }
+
+    public bool VoxelExistsAndIsSolid(Vector3 pos)
+    {
+        ChunkCoord thisChunk = new ChunkCoord(pos);
+
+        if (!IsChunkInWorld(thisChunk) || pos.y < 0 || pos.y > VoxelData.ChunkHeight)
+            return false;
+
+        if (chunksArray[thisChunk.X, thisChunk.Z] != null && chunksArray[thisChunk.X, thisChunk.Z].IsVoxelMapPopulated)
+            return VoxelTypes[chunksArray[thisChunk.X, thisChunk.Z].GetVoxelFromGlobalVector3(pos).BlockTypeId].IsSolid;
+
+        return VoxelTypes[new Voxel(pos, biome, this).BlockTypeId].IsSolid;
     }
 
     /// <summary>
@@ -68,19 +85,6 @@ public class World : MonoBehaviour
         }
     }
 
-    public bool VoxelExistsAndIsSolid(Vector3 pos)
-    {
-        ChunkCoord thisChunk = new ChunkCoord(pos);
-
-        if (!IsChunkInWorld(thisChunk) || pos.y < 0 || pos.y > VoxelData.ChunkHeight)
-            return false;
-
-        if (chunksArray[thisChunk.X, thisChunk.Z] != null && chunksArray[thisChunk.X, thisChunk.Z].IsVoxelMapPopulated)
-            return BlockTypes[chunksArray[thisChunk.X, thisChunk.Z].GetVoxelFromGlobalVector3(pos).BlockTypeId].IsSolid;
-
-        return BlockTypes[new Voxel(pos, biome).BlockTypeId].IsSolid;
-    }
-
     void SpawnPlayer()
     {
         spawnLocation = new Vector3(WorldSizeInVoxels / 2f, VoxelData.ChunkHeight - 50, (WorldSizeInVoxels) / 2f);
@@ -94,6 +98,11 @@ public class World : MonoBehaviour
             && chunkCoordinate.Z >= 0 && chunkCoordinate.Z < WorldSizeInChunks;
     }
 
+    /// <summary>
+    /// Based on the global transform.position this will get the artifical coordinates of the chunk.
+    /// </summary>
+    /// <param name="position">Transform.position where a chunk may be located.</param>
+    /// <returns>Chunk coordinates of the chunk.</returns>
     ChunkCoord GetChunkPositionFromVector3(Vector3 position)
     {
         int x = Mathf.FloorToInt(position.x / VoxelData.ChunkWidth);
@@ -101,6 +110,10 @@ public class World : MonoBehaviour
         return new ChunkCoord(x, z);
     }
 
+    /// <summary>
+    /// The method scans the surrounding of the player and creates a list of previously active chunks
+    /// that were destroyed and updates the current visible chunks. This is done to save performance costs.
+    /// </summary>
     void CheckViewDistance()
     {
         ChunkCoord chunkCoordinates = GetChunkPositionFromVector3(Player.position);

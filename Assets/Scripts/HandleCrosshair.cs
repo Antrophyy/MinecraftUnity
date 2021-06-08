@@ -13,7 +13,7 @@ public class HandleCrosshair : MonoBehaviour
     AudioSource audioData;
     Vector3 diggedVoxelPosition;
     bool diggingStarted;
-    VoxelDetails diggedVoxel;
+    Voxel diggedVoxel;
     float timeToDestroyVoxel;
 
     void Start()
@@ -26,9 +26,7 @@ public class HandleCrosshair : MonoBehaviour
         PlaceCursorBlock();
 
         if (diggedVoxelPosition != null && diggedVoxelPosition != highlightBlock.position)
-        {
             diggingStarted = false;
-        }
 
         if (highlightBlock.gameObject.activeSelf)
         {
@@ -37,7 +35,7 @@ public class HandleCrosshair : MonoBehaviour
                 if (!diggingStarted)
                 {
                     diggedVoxelPosition = highlightBlock.position;
-                    diggedVoxel = world.GetChunkFromVector3(highlightBlock.position).GetVoxelDetails(highlightBlock.position);
+                    diggedVoxel = world.GetChunkFromVector3(highlightBlock.position).GetVoxelFromGlobalVector3(highlightBlock.position);
                     timeToDestroyVoxel = diggedVoxel.TimeToDestroy;
                     diggingStarted = true;
                 }
@@ -48,20 +46,17 @@ public class HandleCrosshair : MonoBehaviour
                         timeToDestroyVoxel -= Time.deltaTime;
                         Debug.Log(timeToDestroyVoxel);
                     }
-
                     else
                     {
-                        world.GetChunkFromVector3(highlightBlock.position).EditVoxel(highlightBlock.position, new Voxel(BlockType.AirBlock));
+                        world.GetChunkFromVector3(highlightBlock.position).ModifyVoxel(highlightBlock.position, new Voxel(BlockType.AirBlock));
                         diggingStarted = false;
                     }
-                        
                 }
-
             }
 
             if (Input.GetMouseButtonDown(1))
             {
-                world.GetChunkFromVector3(placeBlock.position).EditVoxel(placeBlock.position, new Voxel(BlockType.DirtBlock));
+                world.GetChunkFromVector3(placeBlock.position).ModifyVoxel(placeBlock.position, new Voxel(BlockType.DirtBlock));
                 audioData.Play();
             }
         }

@@ -19,7 +19,7 @@ public class ChunkCoord
 
     public ChunkCoord(Vector3 pos)
     {
-        X = Mathf.FloorToInt(pos.x)/ VoxelData.ChunkWidth;
+        X = Mathf.FloorToInt(pos.x) / VoxelData.ChunkWidth;
         Z = Mathf.FloorToInt(pos.z) / VoxelData.ChunkWidth;
     }
 

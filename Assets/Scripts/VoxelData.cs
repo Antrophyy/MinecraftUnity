@@ -1,5 +1,8 @@
 using UnityEngine;
 
+/// <summary>
+/// This static class contains all the VoxelData that we need to use to create a voxel.
+/// </summary>
 public static class VoxelData
 {
     public static readonly int ChunkWidth = 16;

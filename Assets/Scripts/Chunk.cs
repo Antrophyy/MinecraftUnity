@@ -1,6 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Chunk contains a VoxelMap. Default block values are 128x16. There are many chunks
+/// throughout the game and all chunks contain a specific amount of voxels. This is 
+/// done to optimize the final game, where one gameobject is one chunk that contains multiple 
+/// voxels.
+/// </summary>
 public class Chunk
 {
     public bool IsActive { get => chunkObject.activeSelf; set => chunkObject.SetActive(value); }
@@ -22,43 +28,31 @@ public class Chunk
     {
         this.world = world;
         this.biome = biome;
-        
+
         SetChunkGameObject(chunkCoordinates);
         PopulateVoxelMap();
         UpdateChunk();
     }
 
-    public VoxelDetails GetVoxelDetails(Vector3 pos)
-    {
-        int x = Mathf.FloorToInt(pos.x);
-        int y = Mathf.FloorToInt(pos.y);
-        int z = Mathf.FloorToInt(pos.z);
-
-        x -= Mathf.FloorToInt(chunkObject.transform.position.x);
-        z -= Mathf.FloorToInt(chunkObject.transform.position.z);
-
-        var blockType = (BlockType)VoxelMap[x, y, z].BlockTypeId;
-
-        for (int i = 0; i < world.BlockTypes.GetLength(0); i++)
-        {
-            if (world.BlockTypes[i].BlockType.Equals(blockType))
-                return world.BlockTypes[i];
-        }
-        return null;
-    }
-
+    /// <summary>
+    /// Takes any world transform position value and finds the voxel out of that location.
+    /// </summary>
+    /// <param name="pos">Any transform.position of the focused position.</param>
+    /// <returns>Voxel that is present at the position.</returns>
     public Voxel GetVoxelFromGlobalVector3(Vector3 pos)
     {
-        int xCheck = Mathf.FloorToInt(pos.x);
-        int yCheck = Mathf.FloorToInt(pos.y);
-        int zCheck = Mathf.FloorToInt(pos.z);
+        Vector3Int newPost = Vector3ToVector3IntFloored(pos);
 
-        xCheck -= Mathf.FloorToInt(chunkObject.transform.position.x);
-        zCheck -= Mathf.FloorToInt(chunkObject.transform.position.z);
+        newPost.x -= Mathf.FloorToInt(chunkObject.transform.position.x);
+        newPost.z -= Mathf.FloorToInt(chunkObject.transform.position.z);
 
-        return VoxelMap[xCheck, yCheck, zCheck];
+        return VoxelMap[newPost.x, newPost.y, newPost.z];
     }
 
+    /// <summary>
+    /// Prepares the chunk gameobject that is to be created.
+    /// </summary>
+    /// <param name="chunkCoordinates">Coordinates of the chunk after its creation.</param>
     void SetChunkGameObject(ChunkCoord chunkCoordinates)
     {
         chunkObject = new GameObject();
@@ -73,6 +67,9 @@ public class Chunk
         IsActive = true;
     }
 
+    /// <summary>
+    /// Fills up the chunk with the Voxels.
+    /// </summary>
     void PopulateVoxelMap()
     {
         for (int y = 0; y < VoxelData.ChunkHeight; y++)
@@ -81,24 +78,27 @@ public class Chunk
             {
                 for (int z = 0; z < VoxelData.ChunkWidth; z++)
                 {
-                    VoxelMap[x, y, z] = new Voxel(new Vector3Int(x, y, z) + WorldPosition, biome);
+                    VoxelMap[x, y, z] = new Voxel(new Vector3Int(x, y, z) + WorldPosition, biome, world);
                 }
             }
         }
         IsVoxelMapPopulated = true;
     }
 
+    /// <summary>
+    /// Rebuilds the current chunk.
+    /// </summary>
     void UpdateChunk()
     {
         ClearMeshData();
-        
+
         for (int y = 0; y < VoxelData.ChunkHeight; y++)
         {
             for (int x = 0; x < VoxelData.ChunkWidth; x++)
             {
                 for (int z = 0; z < VoxelData.ChunkWidth; z++)
                 {
-                    if (world.BlockTypes[VoxelMap[x, y, z].BlockTypeId].IsSolid)
+                    if (world.VoxelTypes[VoxelMap[x, y, z].BlockTypeId].IsSolid)
                         UpdateMeshData(new Vector3(x, y, z));
                 }
             }
@@ -107,6 +107,9 @@ public class Chunk
         CreateMesh();
     }
 
+    /// <summary>
+    /// Clears mesh data so that the chunk can be rebuilt.
+    /// </summary>
     void ClearMeshData()
     {
         vertexIndex = 0;
@@ -115,24 +118,29 @@ public class Chunk
         uvs.Clear();
     }
 
+    /// <summary>
+    /// Checks whether the voxel is a solid or if it's just air.
+    /// </summary>
+    /// <param name="pos"></param>
+    /// <returns>True if the voxel is solid and false if it's air.</returns>
     bool CheckVoxel(Vector3 pos)
     {
-        int x = Mathf.FloorToInt(pos.x);
-        int y = Mathf.FloorToInt(pos.y);
-        int z = Mathf.FloorToInt(pos.z);
+        Vector3Int newPos = Vector3ToVector3IntFloored(pos);
 
-        if (!IsVoxelInChunk(x, y, z))
+        if (IsVoxelOutsideChunk(newPos))
             return world.VoxelExistsAndIsSolid(pos + WorldPosition);
 
-        return world.BlockTypes[VoxelMap[x, y, z].BlockTypeId].IsSolid;
+        return world.VoxelTypes[VoxelMap[newPos.x, newPos.y, newPos.z].BlockTypeId].IsSolid;
     }
 
-    bool IsVoxelInChunk(int x, int y, int z)
+    /// <summary>
+    /// Checks whether the position of Voxel given is outside this chunk.
+    /// </summary>
+    /// <param name="pos">The position of Vexel to be checked.</param>
+    /// <returns>True if it is outside this chunk and False if it is not.</returns>
+    bool IsVoxelOutsideChunk(Vector3Int pos)
     {
-        if (x < 0 || x > VoxelData.ChunkWidth - 1 || y < 0 || y > VoxelData.ChunkHeight - 1 || z < 0 || z > VoxelData.ChunkWidth - 1)
-            return false;
-        else
-            return true;
+        return pos.x < 0 || pos.x > VoxelData.ChunkWidth - 1 || pos.y < 0 || pos.y > VoxelData.ChunkHeight - 1 || pos.z < 0 || pos.z > VoxelData.ChunkWidth - 1;
     }
 
     /// <summary>
@@ -147,12 +155,10 @@ public class Chunk
             {
                 byte blockID = VoxelMap[(int)pos.x, (int)pos.y, (int)pos.z].BlockTypeId;
 
-                vertices.Add(pos + VoxelData.VoxelVertices[VoxelData.VoxelSides[p, 0]]);
-                vertices.Add(pos + VoxelData.VoxelVertices[VoxelData.VoxelSides[p, 1]]);
-                vertices.Add(pos + VoxelData.VoxelVertices[VoxelData.VoxelSides[p, 2]]);
-                vertices.Add(pos + VoxelData.VoxelVertices[VoxelData.VoxelSides[p, 3]]);
+                for (int i = 0; i < 4; i++)
+                    vertices.Add(pos + VoxelData.VoxelVertices[VoxelData.VoxelSides[p, i]]);
 
-                AddTexture(world.BlockTypes[blockID].GetTextureID(p));
+                AddTexture(world.VoxelTypes[blockID].GetTextureID(p));
 
                 triangles.Add(vertexIndex);
                 triangles.Add(vertexIndex + 1);
@@ -165,6 +171,9 @@ public class Chunk
         }
     }
 
+    /// <summary>
+    /// Creates a mesh for the chunk.
+    /// </summary>
     void CreateMesh()
     {
         Mesh mesh = new Mesh
@@ -178,6 +187,12 @@ public class Chunk
         meshCollider.sharedMesh = meshFilter.mesh;
     }
 
+    /// <summary>
+    /// The method adds textures from the blocks map and adds them to the UVs which makes all
+    /// the sides of voxel to have a texture. Positions of the sides are normalized, i.e. 
+    /// you can reference a picture by its index.
+    /// </summary>
+    /// <param name="textureID">Index of the picture you want to add.</param>
     void AddTexture(int textureID)
     {
         float y = textureID / VoxelData.TextureAliasSizeInBlocks;
@@ -194,31 +209,52 @@ public class Chunk
         uvs.Add(new Vector2(x + VoxelData.NormalizedBlockTexturesSize, y + VoxelData.NormalizedBlockTexturesSize));
     }
 
-    public void EditVoxel(Vector3 pos, Voxel newVoxel)
+    /// <summary>
+    /// The method converts world transform position to chunk position
+    /// in order to find the voxel that is to be modified.
+    /// </summary>
+    /// <param name="pos">World transform position that should point to voxel.</param>
+    /// <param name="newVoxel">A new voxel that you want to place instead.</param>
+    public void ModifyVoxel(Vector3 pos, Voxel newVoxel)
+    {
+        Vector3Int newPos = Vector3ToVector3IntFloored(pos);
+
+        newPos.x -= Mathf.FloorToInt(chunkObject.transform.position.x);
+        newPos.z -= Mathf.FloorToInt(chunkObject.transform.position.z);
+
+        VoxelMap[newPos.x, newPos.y, newPos.z] = newVoxel;
+
+        UpdateSurroundingChunks(new Vector3Int(newPos.x, newPos.y, newPos.z));
+        UpdateChunk();
+    }
+
+    /// <summary>
+    /// Checks each side of the voxel, if the neighboring voxel is part of any other chunk but this one,
+    /// said chunk will get updated.
+    /// </summary>
+    /// <param name="voxel">Vector3Int coordinates of the voxel to be checked.</param>
+    void UpdateSurroundingChunks(Vector3Int voxel)
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            Vector3 currentVoxel = voxel + VoxelData.SideChecks[i];
+
+            if (IsVoxelOutsideChunk(Vector3ToVector3IntFloored(currentVoxel)))
+                world.GetChunkFromVector3(currentVoxel + WorldPosition).UpdateChunk();
+        }
+    }
+
+    /// <summary>
+    /// The method converts any Vector3 and uses FloorToInt method to round
+    /// the coordinates and return Vector3Int.
+    /// </summary>
+    /// <param name="pos">Vector3 that you want to floor to int coordinates.</param>
+    Vector3Int Vector3ToVector3IntFloored(Vector3 pos)
     {
         int x = Mathf.FloorToInt(pos.x);
         int y = Mathf.FloorToInt(pos.y);
         int z = Mathf.FloorToInt(pos.z);
 
-        x -= Mathf.FloorToInt(chunkObject.transform.position.x);
-        z -= Mathf.FloorToInt(chunkObject.transform.position.z);
-
-        VoxelMap[x, y, z] = newVoxel;
-
-        UpdateSurroundingVoxels(x, y, z);
-        UpdateChunk();
-    }
-
-    void UpdateSurroundingVoxels(int x, int y, int z)
-    {
-        Vector3 voxel = new Vector3(x, y, z);
-
-        for (int i = 0; i < 6; i++)
-        {
-            Vector3 currentVoxel = voxel + VoxelData.SideChecks[i];
-
-            if (!IsVoxelInChunk((int)currentVoxel.x, (int)currentVoxel.y, (int)currentVoxel.z))
-                world.GetChunkFromVector3(currentVoxel + WorldPosition).UpdateChunk();
-        }
+        return new Vector3Int(x, y, z);
     }
 }
