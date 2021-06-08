@@ -5,7 +5,7 @@ A Unity project that is trying to replicate Minecraft's basics to learn optimiza
 # Optimization improvements done:
 - Instead of using gameobjects for every "cube" I decided to go the "minecraft route" as well and implement custom voxels with chunks.
 That way, only one gameobject is created for a lot of voxels. 
-- Disabling sides of voxels that don't have to be visible (i.e. they are below other visible voxels).
+- Disabling sides of voxels that don't have to be visible (i.e. they are below other visible voxels). This is done by having an array of vertices for the voxel and "connecting" the 3 vertices to create a triangle, if you create two triangles you get one side of the cube.
 - Disabling and enabling chunks as the player moves through the game world.
 
 # Optimization improvements that could be implemented:
