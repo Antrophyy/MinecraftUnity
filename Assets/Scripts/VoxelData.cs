@@ -40,12 +40,12 @@ public static class VoxelData
     /// </summary>
     public static readonly int[,] VoxelSides =
     {
-        {0, 3, 1, 2}, // Back Face
-		{5, 6, 4, 7}, // Front Face
-		{3, 7, 2, 6}, // Top Face
-		{1, 5, 0, 4}, // Bottom Face
-		{4, 7, 0, 3}, // Left Face
-		{1, 2, 5, 6}  // Right Face
+        {0, 3, 1, 2}, // Back Side
+		{5, 6, 4, 7}, // Front Side
+		{3, 7, 2, 6}, // Top Side
+		{1, 5, 0, 4}, // Bottom Side
+		{4, 7, 0, 3}, // Left Side
+		{1, 2, 5, 6}  // Right Side
     };
 
     public static readonly Vector2[] VoxelUvs =

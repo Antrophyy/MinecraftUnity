@@ -11,25 +11,25 @@ public class World : MonoBehaviour
     public static int WorldSizeInVoxels => WorldSizeInChunks * VoxelData.ChunkWidth;
     public static readonly int ViewDistanceInChunks = 5;
     public Material Material;
-    public VoxelSideType[] BlockTypes;
+    public VoxelDetails[] BlockTypes;
 
     [SerializeField]
     int GameSeed;
     [SerializeField]
     BiomeAttributes biome;
 
-    readonly ChunkBuilder[,] chunksArray = new ChunkBuilder[WorldSizeInChunks, WorldSizeInChunks];
+    readonly Chunk[,] chunksArray = new Chunk[WorldSizeInChunks, WorldSizeInChunks];
     readonly List<ChunkCoord> activeChunks = new List<ChunkCoord>();
     Vector3 spawnLocation;
     ChunkCoord playerLastChunkCoordinates;
     ChunkCoord playerChunkCoord;
-    readonly int maximumPerlinNoise = 78;
 
     void Start()
     {
         Random.InitState(GameSeed);
         GenerateInitialWorld();
         SpawnPlayer();
+
         playerLastChunkCoordinates = GetChunkPositionFromVector3(Player.position);
     }
 
@@ -44,46 +44,11 @@ public class World : MonoBehaviour
         }
     }
 
-    public byte GetVoxel(Vector3 position)
-    {
-        int yPosition = Mathf.FloorToInt(position.y);
-
-        // outside of world = air
-        if (!IsVoxelInWorld(position))
-            return (byte)BlockType.AirBlock;
-
-        // bottom of chunk = bedrock
-        if (yPosition < 5)
-            return (byte)BlockType.BedrockBlock;
-
-        int terrainHeight = Mathf.FloorToInt(biome.TerrainHeight * Noise.Get2DPerlin(new Vector2(position.x, position.z), 0, biome.TerrainScale)) + biome.SolidGroundHeight;
-
-        if (yPosition > maximumPerlinNoise - 5 && yPosition <= terrainHeight)
-            return (byte)BlockType.SnowBlock;
-        if (yPosition > maximumPerlinNoise - 10 && yPosition == terrainHeight)
-            return (byte)BlockType.SnowDirtBlock;
-        if (yPosition == terrainHeight)
-            return (byte)BlockType.GrassBlock;
-        else if (yPosition < terrainHeight && yPosition > terrainHeight - 5)
-            return (byte)BlockType.DirtBlock;
-        else if (yPosition > terrainHeight)
-            return (byte)BlockType.AirBlock;
-        else
-            return (byte)BlockType.StoneBlock;
-    }
-
-    public ChunkBuilder GetChunkFromVector3(Vector3 position)
+    public Chunk GetChunkFromVector3(Vector3 position)
     {
         int x = Mathf.FloorToInt(position.x / VoxelData.ChunkWidth);
         int z = Mathf.FloorToInt(position.z / VoxelData.ChunkWidth);
         return chunksArray[x, z];
-    }
-
-    public bool IsVoxelInWorld(Vector3 position)
-    {
-        return position.x >= 0 && position.x < WorldSizeInVoxels
-            && position.y >= 0 && position.y < VoxelData.ChunkHeight
-            && position.z >= 0 && position.z < WorldSizeInVoxels;
     }
 
     /// <summary>
@@ -97,13 +62,13 @@ public class World : MonoBehaviour
         {
             for (int z = (WorldSizeInChunks / 2) - ViewDistanceInChunks; z < (WorldSizeInChunks / 2) + ViewDistanceInChunks; z++)
             {
-                chunksArray[x, z] = new ChunkBuilder(new ChunkCoord(x, z), this);
+                chunksArray[x, z] = new Chunk(new ChunkCoord(x, z), this, biome);
                 activeChunks.Add(new ChunkCoord(x, z));
             }
         }
     }
 
-    public bool CheckForVoxel(Vector3 pos)
+    public bool VoxelExistsAndIsSolid(Vector3 pos)
     {
         ChunkCoord thisChunk = new ChunkCoord(pos);
 
@@ -111,9 +76,9 @@ public class World : MonoBehaviour
             return false;
 
         if (chunksArray[thisChunk.X, thisChunk.Z] != null && chunksArray[thisChunk.X, thisChunk.Z].IsVoxelMapPopulated)
-            return BlockTypes[chunksArray[thisChunk.X, thisChunk.Z].GetVoxelFromGlobalVector3(pos)].IsSolid;
+            return BlockTypes[chunksArray[thisChunk.X, thisChunk.Z].GetVoxelFromGlobalVector3(pos).BlockTypeId].IsSolid;
 
-        return BlockTypes[GetVoxel(pos)].IsSolid;
+        return BlockTypes[new Voxel(pos, biome).BlockTypeId].IsSolid;
     }
 
     void SpawnPlayer()
@@ -154,7 +119,7 @@ public class World : MonoBehaviour
                 if (IsChunkInWorld(chunkCoord))
                 {
                     if (chunksArray[x, z] == null)
-                        chunksArray[x, z] = new ChunkBuilder(chunkCoord, this);
+                        chunksArray[x, z] = new Chunk(chunkCoord, this, biome);
 
                     chunksArray[x, z].IsActive = true;
                     activeChunks.Add(chunkCoord);

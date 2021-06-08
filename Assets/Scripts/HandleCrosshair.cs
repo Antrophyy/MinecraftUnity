@@ -11,6 +11,11 @@ public class HandleCrosshair : MonoBehaviour
     readonly float checkIncrement = 0.1f;
     readonly float reach = 8f;
     AudioSource audioData;
+    Vector3 diggedVoxelPosition;
+    bool diggingStarted;
+    VoxelDetails diggedVoxel;
+    float timeToDestroyVoxel;
+
     void Start()
     {
         audioData = GetComponent<AudioSource>();
@@ -20,14 +25,43 @@ public class HandleCrosshair : MonoBehaviour
     {
         PlaceCursorBlock();
 
+        if (diggedVoxelPosition != null && diggedVoxelPosition != highlightBlock.position)
+        {
+            diggingStarted = false;
+        }
+
         if (highlightBlock.gameObject.activeSelf)
         {
-            if (Input.GetMouseButtonDown(0))
-                world.GetChunkFromVector3(highlightBlock.position).EditVoxel(highlightBlock.position, 0);
+            if (Input.GetMouseButton(0))
+            {
+                if (!diggingStarted)
+                {
+                    diggedVoxelPosition = highlightBlock.position;
+                    diggedVoxel = world.GetChunkFromVector3(highlightBlock.position).GetVoxelDetails(highlightBlock.position);
+                    timeToDestroyVoxel = diggedVoxel.TimeToDestroy;
+                    diggingStarted = true;
+                }
+                else
+                {
+                    if (timeToDestroyVoxel > 0)
+                    {
+                        timeToDestroyVoxel -= Time.deltaTime;
+                        Debug.Log(timeToDestroyVoxel);
+                    }
+
+                    else
+                    {
+                        world.GetChunkFromVector3(highlightBlock.position).EditVoxel(highlightBlock.position, new Voxel(BlockType.AirBlock));
+                        diggingStarted = false;
+                    }
+                        
+                }
+
+            }
 
             if (Input.GetMouseButtonDown(1))
             {
-                world.GetChunkFromVector3(placeBlock.position).EditVoxel(placeBlock.position, 4);
+                world.GetChunkFromVector3(placeBlock.position).EditVoxel(placeBlock.position, new Voxel(BlockType.DirtBlock));
                 audioData.Play();
             }
         }
@@ -42,7 +76,7 @@ public class HandleCrosshair : MonoBehaviour
         {
             Vector3 pos = Camera.main.transform.position + (Camera.main.transform.forward * step);
 
-            if (world.CheckForVoxel(pos))
+            if (world.VoxelExistsAndIsSolid(pos))
             {
                 highlightBlock.position = new Vector3(Mathf.FloorToInt(pos.x), Mathf.FloorToInt(pos.y), Mathf.FloorToInt(pos.z));
                 placeBlock.position = lastPos;
