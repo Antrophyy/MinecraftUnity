@@ -1,4 +1,4 @@
-# MinecraftVlcek
+# MinecraftUnity
 
 A Unity project that is trying to replicate Minecraft's basics to learn optimization.
 
