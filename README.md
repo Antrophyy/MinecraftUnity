@@ -1,6 +1,6 @@
 # MinecraftUnity
 
-A Unity project that is trying to replicate Minecraft's basics to learn optimization.
+An Unity project that is trying to replicate Minecraft's basics to learn optimization.
 
 # Optimization improvements done:
 - Instead of using gameobjects for every "cube" I decided to go the "minecraft route" as well and implement custom voxels with chunks.
